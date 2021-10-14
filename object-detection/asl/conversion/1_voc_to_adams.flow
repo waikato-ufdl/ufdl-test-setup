@@ -1,0 +1,24 @@
+# Project: adams
+# Date: 2021-10-15 09:31:53
+# User: fracpete
+# Charset: UTF-8
+# Modules: adams-annotator,adams-core,adams-event,adams-excel,adams-ffmpeg,adams-groovy,adams-imaging,adams-imaging-boofcv,adams-imaging-openimaj,adams-json,adams-math,adams-meta,adams-ml,adams-odf,adams-pdf,adams-python,adams-random,adams-rats-core,adams-spreadsheet,adams-terminal,adams-video,adams-visualstats,adams-weka,adams-xml
+#
+adams.flow.control.Flow -annotation "Converts the Pascal VOC annotations into ADAMS ones." -flow-execution-listener adams.flow.execution.NullListener -flow-restart-manager adams.flow.control.flowrestart.NullManager
+ adams.flow.source.Start
+ adams.flow.control.Trigger -name "prompt user"
+  adams.flow.standalone.SetVariable -name "restore file" -var-name restore -var-value @{flow_filename_long}.props -value-type FILE_FORWARD_SLASHES -expand-value true
+  adams.flow.source.EnterManyValues -name Parameters -stop-if-canceled true -value "adams.flow.source.valuedefinition.DirectoryValueDefinition -name input_dir -display \"Input dir\" -help \"dir with Pascal VOC annotations (.xml and .jpg)\" -file-chooser-title \"Input dir\" -use-forward-slashes true" -value "adams.flow.source.valuedefinition.DirectoryValueDefinition -name output_dir -display \"Output dir\" -help \"directory to store the converted annotations in\" -file-chooser-title \"Output dir\" -use-forward-slashes true" -output-type MAP -restoration-enabled true -restoration-file @{restore}
+  adams.flow.transformer.MapToVariables
+ adams.flow.control.Trigger -name process
+  adams.flow.source.FileSystemSearch -search "adams.flow.source.filesystemsearch.LocalFileSearch -directory @{input_dir} -regexp .*\\\\.jpg -sorting SORT_BY_NAME" -use-forward-slashes true
+  adams.flow.control.Tee -name copy
+   adams.flow.transformer.CopyFile -target-dir @{output_dir}
+  adams.flow.control.Tee -name "output file"
+   adams.flow.transformer.BaseName
+   adams.flow.transformer.PrependDir -prefix @{output_dir} -use-forward-slashes true
+   adams.flow.transformer.Convert -conversion "adams.data.conversion.ReplaceFileExtension -extension .report"
+   adams.flow.transformer.SetVariable -var-name report
+  adams.flow.transformer.Convert -conversion "adams.data.conversion.ReplaceFileExtension -extension .xml -use-forward-slashes true"
+  adams.flow.transformer.ReportFileReader -reader adams.data.io.input.PascalVOCObjectLocationsReader
+  adams.flow.transformer.ReportFileWriter -writer adams.data.io.output.DefaultSimpleReportWriter -dir @{output_dir} -generator "adams.core.io.SimpleFixedFilenameGenerator -name @{report}"
